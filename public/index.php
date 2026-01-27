@@ -4,15 +4,19 @@ use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
-// 1. HAPUS CACHE BANDEL (Supaya konfigurasi di atas terbaca)
-// Kita arahkan cache ke tempat sampah (/tmp)
-$tmp = '/tmp/cache_sampah';
+// 1. BYPASS SESSION DATABASE (SOLUSI TABLE NOT FOUND)
+// Kita paksa Laravel menyimpan session di Cookie browser, bukan di Database.
+// Jadi dia tidak akan mencari tabel 'sessions' yang belum ada itu.
+putenv('SESSION_DRIVER=cookie');
+putenv('CACHE_STORE=array'); 
+
+// 2. CONFIG LAIN (YANG SUDAH SUKSES)
+$tmp = '/tmp/cache_bypass_session';
 if (!is_dir($tmp)) mkdir($tmp, 0777, true);
 putenv("APP_CONFIG_CACHE={$tmp}/config.php");
 putenv("APP_SERVICES_CACHE={$tmp}/services.php");
 putenv("APP_PACKAGES_CACHE={$tmp}/packages.php");
 
-// 2. APP KEY (WAJIB ADA)
 putenv('APP_KEY=base64:iKB6Mjm4Ko+geGJjqlzKMinpZqShp6PdbACHFAbBsEI=');
 putenv('APP_DEBUG=true');
 
