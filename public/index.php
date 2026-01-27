@@ -1,74 +1,82 @@
 <?php
 
-use Illuminate\Http\Request;
+// ====================================================================
+// 1. CACHE BUSTER (WAJIB ADA LAGI)
+// ====================================================================
+// Kita paksa Laravel mencari cache di folder /tmp (yang pasti kosong).
+// Tanpa ini, Vercel akan membaca settingan lama yang error.
+$tmpPath = '/tmp/laravel_cache';
+if (!is_dir($tmpPath)) mkdir($tmpPath, 0777, true);
 
-define('LARAVEL_START', microtime(true));
+putenv("APP_CONFIG_CACHE={$tmpPath}/config.php");
+putenv("APP_SERVICES_CACHE={$tmpPath}/services.php");
+putenv("APP_PACKAGES_CACHE={$tmpPath}/packages.php");
+putenv("APP_ROUTES_CACHE={$tmpPath}/routes.php");
 
-// =================================================================
-// 1. SUNTIK CONFIGURASI (HARDCODE) - WAJIB UNTUK VERCEL
-// =================================================================
-// Karena DB sudah connect, kita masukkan credential yang sudah terbukti benar.
+// ====================================================================
+// 2. INJECT CREDENTIALS (YANG SUDAH BENAR)
+// ====================================================================
 
-// APP KEY (Pastikan sama dengan yang di laptop)
+// APP KEY (Pastikan sama dengan laptop)
 putenv('APP_KEY=base64:iKB6Mjm4Ko+geGJjqlzKMinpZqShp6PdbACHFAbBsEI=');
 putenv('APP_DEBUG=true');
 putenv('APP_ENV=production');
 
-// DATABASE CREDENTIALS (YANG SUDAH SUKSES TADI)
+// DATABASE (Sesuai yang Mas buat tadi)
 putenv('DB_CONNECTION=mysql');
 putenv('DB_HOST=gateway01.ap-southeast-1.prod.aws.tidbcloud.com');
 putenv('DB_PORT=4000');
-// Nama database diganti jadi staycation-db (karena sudah dibuat)
-putenv('DB_DATABASE=staycation-db'); 
+putenv('DB_DATABASE=staycation-db');   // <-- SUDAH SAYA GANTI JADI staycation-db
 putenv('DB_USERNAME=4DYyn4ujWLMYNpK.root'); 
-putenv('DB_PASSWORD=QQhLZbWir5XT9sPv'); // Password tanpa simbol
+putenv('DB_PASSWORD=QQhLZbWir5XT9sPv'); // <-- Password HurufAngka
 putenv('DB_SSL_MODE=required');
 
-// Simpan ke $_ENV juga agar terbaca oleh library lain
-$_ENV['APP_KEY']     = getenv('APP_KEY');
-$_ENV['DB_HOST']     = getenv('DB_HOST');
-$_ENV['DB_DATABASE'] = getenv('DB_DATABASE');
-$_ENV['DB_USERNAME'] = getenv('DB_USERNAME');
-$_ENV['DB_PASSWORD'] = getenv('DB_PASSWORD');
+// ====================================================================
+// 3. BOOTING
+// ====================================================================
+use Illuminate\Http\Request;
 
-// =================================================================
-// 2. LOADING LIBRARY LARAVEL (AUTOLOAD)
-// =================================================================
+define('LARAVEL_START', microtime(true));
 
-// Cek Maintenance Mode
+// Load Maintenance
 if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php')) {
     require $maintenance;
 }
 
-// INI YANG TADI ERROR. KITA PASTIKAN DILOAD DULUAN.
-if (file_exists(__DIR__.'/../vendor/autoload.php')) {
-    require __DIR__.'/../vendor/autoload.php';
-} else {
-    die("❌ Error Fatal: Folder '/vendor' tidak ditemukan. Jalankan 'composer install' di Vercel.");
-}
+// Load Composer
+require __DIR__.'/../vendor/autoload.php';
 
-// =================================================================
-// 3. BOOTING APLIKASI
-// =================================================================
-
+// Load App
 $app = require_once __DIR__.'/../bootstrap/app.php';
 
-// =================================================================
-// 4. FIX STORAGE PATH (KHUSUS VERCEL)
-// =================================================================
-// Pindahkan penyimpanan cache/view ke folder /tmp (karena Vercel read-only)
-
+// ====================================================================
+// 4. FIX STORAGE PATH
+// ====================================================================
 $app->useStoragePath('/tmp/storage');
-
 if (!is_dir('/tmp/storage')) {
     mkdir('/tmp/storage', 0777, true);
     mkdir('/tmp/storage/framework/views', 0777, true);
-    mkdir('/tmp/storage/framework/cache', 0777, true);
-    mkdir('/tmp/storage/framework/sessions', 0777, true);
 }
 
-// =================================================================
-// 5. JALANKAN REQUEST
-// =================================================================
+// ====================================================================
+// 5. EKSEKUSI DENGAN JEBAKAN ERROR (TRY-CATCH)
+// ====================================================================
+// Kita tangkap errornya supaya tidak muncul "View not found" lagi.
 
-$app->handleRequest(Request::capture());
+try {
+    $request = Request::capture();
+    $response = $app->handle($request);
+    $response->send();
+    $app->terminate($request, $response);
+} catch (\Throwable $e) {
+    // Kalau error, munculkan pesan aslinya!
+    echo "<div style='background:#222; color:#fff; padding:20px; font-family:monospace;'>";
+    echo "<h1 style='color:red'>🔥 Error Lagi? Mari Kita Lihat:</h1>";
+    echo "<h3>Pesan Error:</h3>";
+    echo "<pre style='color:yellow; font-size:16px;'>" . $e->getMessage() . "</pre>";
+    echo "<hr>";
+    echo "<h3>Lokasi:</h3>";
+    echo "<p>" . $e->getFile() . " baris " . $e->getLine() . "</p>";
+    echo "</div>";
+    die();
+}
