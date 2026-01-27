@@ -3,57 +3,67 @@
 use Illuminate\Http\Request;
 
 // =================================================================
-// 1. RAW ERROR HANDLING (Jaga-jaga kalau PHP mati total)
+// 1. INJEKSI DATA "LAYAR HIJAU" (ENV FORCING)
 // =================================================================
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// Kita masukkan data yang TADI SUDAH TERBUKTI SUKSES ke semua celah memori PHP.
+// (putenv, $_ENV, dan $_SERVER) supaya Laravel PASTI membacanya.
+
+$variables = [
+    'APP_KEY'       => 'base64:iKB6Mjm4Ko+geGJjqlzKMinpZqShp6PdbACHFAbBsEI=',
+    'APP_DEBUG'     => 'true',
+    'APP_ENV'       => 'production',
+    
+    'DB_CONNECTION' => 'mysql',
+    'DB_HOST'       => 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
+    'DB_PORT'       => '4000',
+    'DB_DATABASE'   => 'staycation-db',
+    'DB_USERNAME'   => '4DYyn4ujWLMYNpK.root',
+    'DB_PASSWORD'   => 'QQhLZbWir5XT9sPv', // <--- PASSWORD YANG TADI SUKSES (HIJAU)
+    'DB_SSL_MODE'   => 'required',
+];
+
+foreach ($variables as $key => $value) {
+    putenv("$key=$value");
+    $_ENV[$key] = $value;
+    $_SERVER[$key] = $value;
+}
+
+// =================================================================
+// 2. CACHE BUSTER (PEMBERSIH MEMORI)
+// =================================================================
+// Kita paksa Laravel membaca ulang config dari data di atas.
+// Kita arahkan cache ke file kosong di /tmp.
+
+$tmpCache = '/tmp/config.php';
+putenv("APP_CONFIG_CACHE=$tmpCache");
+if (file_exists($tmpCache)) {
+    @unlink($tmpCache); // Hapus cache lama jika ada
+}
+
+// =================================================================
+// 3. BOOTING LARAVEL STANDARD
+// =================================================================
 
 define('LARAVEL_START', microtime(true));
 
-// 2. Load Autoloader
+// Load Maintenance
+if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php')) {
+    require $maintenance;
+}
+
+// Load Autoload
 if (file_exists(__DIR__.'/../vendor/autoload.php')) {
     require __DIR__.'/../vendor/autoload.php';
 } else {
-    die("VENDOR MISSING. Jalankan composer install.");
+    die("Vendor folder missing. Composer install failed.");
 }
 
-// 3. Boot Laravel
+// Load App
 $app = require_once __DIR__.'/../bootstrap/app.php';
 
 // =================================================================
-// 4. GOD MODE CONFIG INJECTION (SUNTIK MATI)
+// 4. FIX STORAGE PATH (WAJIB VERCEL)
 // =================================================================
-// Kita menimpa konfigurasi Laravel langsung di memori.
-// Tidak peduli apa isi .env atau config/database.php, kode ini yang menang.
-
-// A. APP KEY & DEBUG (Wajib)
-$app->make('config')->set('app.key', 'base64:iKB6Mjm4Ko+geGJjqlzKMinpZqShp6PdbACHFAbBsEI=');
-$app->make('config')->set('app.debug', true);
-$app->make('config')->set('app.env', 'production');
-
-// B. DATABASE CONNECTION (Data "Hijau" Mas Tadi)
-$app->make('config')->set('database.default', 'mysql');
-$app->make('config')->set('database.connections.mysql', [
-    'driver'    => 'mysql',
-    'host'      => 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
-    'port'      => 4000,
-    'database'  => 'staycation-db',
-    'username'  => '4DYyn4ujWLMYNpK.root',
-    'password'  => 'QQhLZbWir5XT9sPv', // Password Juara!
-    'charset'   => 'utf8mb4',
-    'collation' => 'utf8mb4_unicode_ci',
-    'prefix'    => '',
-    'strict'    => true,
-    'engine'    => null,
-    'sslmode'   => 'verify-ca',
-    'options'   => [
-        PDO::MYSQL_ATTR_SSL_CA => '/etc/ssl/certs/ca-certificates.crt',
-        PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
-    ]
-]);
-
-// C. FIX STORAGE VERCEL
 $app->useStoragePath('/tmp/storage');
 $dirs = [
     '/tmp/storage', 
@@ -66,19 +76,19 @@ foreach ($dirs as $dir) {
 }
 
 // =================================================================
-// 5. EXECUTE
+// 5. JALANKAN REQUEST
 // =================================================================
 
+// Kita pakai Try-Catch sederhana hanya untuk log, bukan untuk diagnosa
 try {
     $request = Request::capture();
     $response = $app->handle($request);
     $response->send();
     $app->terminate($request, $response);
 } catch (\Throwable $e) {
-    // Kalau masih error, tampilkan layar merah dengan detail
-    echo "<div style='font-family:sans-serif; background:#a00; color:#fff; padding:20px;'>";
-    echo "<h1>🔥 FATAL ERROR</h1>";
-    echo "<h3>" . $e->getMessage() . "</h3>";
-    echo "<pre>" . $e->getTraceAsString() . "</pre>";
+    echo "<div style='font-family:sans-serif; padding:20px; background:#f00; color:#fff;'>";
+    echo "<h1>💥 Error Terjadi</h1>";
+    echo "<p>" . $e->getMessage() . "</p>";
+    echo "<p>File: " . $e->getFile() . " baris " . $e->getLine() . "</p>";
     echo "</div>";
 }
