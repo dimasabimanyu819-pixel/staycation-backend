@@ -5,36 +5,52 @@ use App\Models\Booking;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Artisan; // <-- Tambahan Wajib
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-// --- 1. FITUR UPGRADE: BUAT TABEL MAINTENANCE (JALANKAN INI) ---
-// Akses browser ke: /upgrade-database-maintenance
-Route::get('/upgrade-database-maintenance', function () {
+// --- JALUR DEBUG & MIGRASI (PENGGANTI UPGRADE LAMA) ---
+// Akses browser ke: /run-migration-production
+Route::get('/run-migration-production', function () {
+    echo "<h1>🔍 Memulai Diagnosa Sistem & Database...</h1>";
+    echo "Waktu Server: " . now() . "<br><hr>";
+
+    // 1. CEK KONEKSI DATABASE
     try {
-        // Cek apakah tabel sudah ada? Kalau belum, buatkan.
-        if (!Schema::hasTable('unit_maintenances')) {
-            Schema::create('unit_maintenances', function (Blueprint $table) {
-                $table->id();
-                // Relasi ke tabel Units (Kalau unit dihapus, jadwal perbaikan ikut terhapus)
-                $table->foreignId('unit_id')->constrained('units')->onDelete('cascade'); 
-                
-                $table->dateTime('start_time'); // Mulai Perbaikan
-                $table->dateTime('end_time');   // Selesai Perbaikan
-                $table->string('reason')->nullable(); // Alasan (misal: AC Bocor)
-                $table->timestamps();
-            });
-            return "<h1 style='color:green'>SUKSES! Tabel Maintenance Berhasil Dibuat.</h1>";
-        }
-        return "<h1>Tabel 'unit_maintenances' sudah ada, tidak perlu upgrade lagi.</h1>";
+        echo "<h3>1. Mencoba Koneksi ke Database...</h3>";
+        
+        // Tes koneksi
+        DB::connection()->getPdo();
+        $dbName = DB::connection()->getDatabaseName();
+        
+        echo "✅ <strong>KONEKSI BERHASIL!</strong><br>";
+        echo "Terhubung ke Database: <span style='color:green; font-weight:bold;'>$dbName</span><br>";
+        echo "<hr>";
     } catch (\Exception $e) {
-        return "<h1 style='color:red'>Error: " . $e->getMessage() . "</h1>";
+        echo "❌ <strong style='color:red; font-size:18px;'>GAGAL KONEKSI DATABASE:</strong><br>";
+        echo "<strong>Pesan Error:</strong> " . $e->getMessage() . "<br><br>";
+        echo "👉 <em>Solusi: Cek Environment Variables (DB_HOST, DB_PASSWORD) di Vercel. Pastikan tidak ada typo.</em>";
+        die(); // Stop script di sini jika koneksi gagal
+    }
+
+    // 2. JALANKAN MIGRASI (BUAT TABEL)
+    try {
+        echo "<h3>2. Menjalankan Migrasi (Membuat Tabel)...</h3>";
+        
+        // Perintah ini akan menghapus tabel lama & buat baru (Fresh)
+        Artisan::call('migrate:fresh --force');
+        
+        echo "✅ <strong>MIGRASI SUKSES!</strong> Semua tabel berhasil dibuat.<br>";
+        echo "<div style='background:#f4f4f4; padding:10px; border:1px solid #ccc; margin-top:10px;'><pre>" . Artisan::output() . "</pre></div>";
+    } catch (\Exception $e) {
+        echo "❌ <strong style='color:red;'>GAGAL SAAT MIGRASI:</strong><br>";
+        echo "Pesan Error: " . $e->getMessage() . "<br>";
     }
 });
 
-// --- 2. FITUR DOWNLOAD LAPORAN (TETAP ADA & AMAN) ---
+// --- FITUR DOWNLOAD LAPORAN (TETAP ADA & AMAN) ---
 Route::get('/export-bookings', function () {
     
     $bookings = Booking::with(['roomType.apartment', 'unit'])->latest()->get();
