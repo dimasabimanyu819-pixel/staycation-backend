@@ -2,16 +2,20 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Models\Booking;
+use App\Models\User; // <-- TAMBAHAN: Untuk User Model
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Artisan; // <-- Tambahan Wajib
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Hash; // <-- TAMBAHAN: Untuk Password Hashing
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-// --- JALUR DEBUG & MIGRASI (PENGGANTI UPGRADE LAMA) ---
+// ============================================================================
+// 1. JALUR DEBUG & MIGRASI (PENGGANTI UPGRADE LAMA)
+// ============================================================================
 // Akses browser ke: /run-migration-production
 Route::get('/run-migration-production', function () {
     echo "<h1>🔍 Memulai Diagnosa Sistem & Database...</h1>";
@@ -50,7 +54,44 @@ Route::get('/run-migration-production', function () {
     }
 });
 
-// --- FITUR DOWNLOAD LAPORAN (TETAP ADA & AMAN) ---
+// ============================================================================
+// 2. JALUR BUAT USER ADMIN (PENTING: JALANKAN INI AGAR BISA LOGIN)
+// ============================================================================
+// Akses browser ke: /create-admin-user
+Route::get('/create-admin-user', function () {
+    try {
+        // Cek apakah tabel users ada
+        if (!Schema::hasTable('users')) {
+            return "❌ Tabel 'users' belum ada. Jalankan migrasi dulu di /run-migration-production";
+        }
+
+        // Cek apakah user admin sudah ada
+        $email = 'admin@staycation.com';
+        if (User::where('email', $email)->exists()) {
+            return "⚠️ User Admin sudah ada! Silakan langsung login.<br>Email: $email<br>Pass: password123";
+        }
+
+        // Buat User Baru
+        $user = User::create([
+            'name'      => 'Super Admin',
+            'email'     => $email,
+            'password'  => Hash::make('password123'), // Password default
+            'email_verified_at' => now(),
+        ]);
+
+        return "✅ <strong>SUKSES!</strong> User Admin berhasil dibuat.<br><br>" .
+               "📧 Email: <strong>$email</strong><br>" .
+               "🔑 Password: <strong>password123</strong><br><br>" .
+               "👉 Silakan login di: <a href='/admin'>/admin</a> atau <a href='/dashboard'>/dashboard</a>";
+
+    } catch (\Exception $e) {
+        return "❌ Gagal membuat user: " . $e->getMessage();
+    }
+});
+
+// ============================================================================
+// 3. FITUR DOWNLOAD LAPORAN (TETAP ADA & AMAN)
+// ============================================================================
 Route::get('/export-bookings', function () {
     
     $bookings = Booking::with(['roomType.apartment', 'unit'])->latest()->get();
