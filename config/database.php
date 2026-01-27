@@ -44,24 +44,22 @@ return [
         ],
 
         'mysql' => [
-            'driver'    => 'mysql',
-            // HAPUS env('DB_HOST'...) GANTI JADI INI:
-            'host'      => 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
-            'port'      => 4000,
-            'database'  => 'staycation-db',
-            'username'  => '4DYyn4ujWLMYNpK.root',
-            'password'  => 'QQhLZbWir5XT9sPv', // <-- INI DIA KUNCINYA
-            'unix_socket' => '',
-            'charset'   => 'utf8mb4',
-            'collation' => 'utf8mb4_unicode_ci',
-            'prefix'    => '',
+            'driver' => 'mysql',
+            'url' => env('DB_URL'),
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '3306'),
+            'database' => 'db_staycation',
+            'username' => env('DB_USERNAME', 'root'),
+            'password' => env('DB_PASSWORD', ''),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => env('DB_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
             'prefix_indexes' => true,
-            'strict'    => true,
-            'engine'    => null,
-            // Opsi SSL Wajib TiDB
-            'options'   => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => '/etc/ssl/cert.pem',
-                PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                (PHP_VERSION_ID >= 80500 ? \Pdo\Mysql::ATTR_SSL_CA : \PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
 
