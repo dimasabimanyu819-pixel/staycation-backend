@@ -11,12 +11,24 @@
         }
     ],
     "env": {
+        "APP_NAME": "Staycation",
         "APP_ENV": "production",
         "APP_DEBUG": "true",
         "APP_URL": "https://${VERCEL_URL}",
+        
         "LOG_CHANNEL": "stderr",
         "CONFIG_CACHE": "false",
         "ROUTE_CACHE": "false",
-        "VIEW_CACHE": "false"
+        "VIEW_CACHE": "false",
+
+        "APP_KEY": "base64:iKB6Mjm4Ko+geGJjqlzKMinpZqShp6PdbACHFAbBsEI=",
+
+        "DB_CONNECTION": "mysql",
+        "DB_HOST": "gateway01.ap-southeast-1.prod.aws.tidbcloud.com",
+        "DB_PORT": "4000",
+        "DB_DATABASE": "staycation-db",
+        "DB_USERNAME": "4DYyn4ujWLMYNpK.root",
+        "DB_PASSWORD": "IBV8eMZcDAFuPSDf",
+        "DB_SSL_MODE": "required"
     }
 }
