@@ -45,13 +45,12 @@ return [
 
         'mysql' => [
             'driver'    => 'mysql',
-            'url'       => env('DATABASE_URL'),
-            // --- BAGIAN INI DI-HARDCODE ---
-            'host'      => 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com', // HOST TiDB
-            'port'      => '4000',
+            // HAPUS env('DB_HOST'...) GANTI JADI INI:
+            'host'      => 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
+            'port'      => 4000,
             'database'  => 'staycation-db',
-            'username'  => '4DYyn4ujWLMYNpK.root', // USER TiDB
-            'password'  => 'e0BerygY9bbddkXy',     // PASS TiDB
+            'username'  => '4DYyn4ujWLMYNpK.root',
+            'password'  => 'QQhLZbWir5XT9sPv', // <-- INI DIA KUNCINYA
             'unix_socket' => '',
             'charset'   => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
@@ -59,7 +58,7 @@ return [
             'prefix_indexes' => true,
             'strict'    => true,
             'engine'    => null,
-            // PENTING: SSL Mode Wajib ditulis array ini
+            // Opsi SSL Wajib TiDB
             'options'   => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => '/etc/ssl/cert.pem',
                 PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
