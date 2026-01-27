@@ -1,15 +1,30 @@
 <?php
 
-// =============================================================
-// 1. HARDCODE ENV (SUNTIK PAKSA)
-// =============================================================
+// ====================================================================
+// 1. CACHE BUSTER (SOLUSI INTI)
+// ====================================================================
+// Kita paksa Laravel mencari cache di folder /tmp (yang pasti kosong).
+// Ini akan membuat Laravel MENGABAIKAN file cache lama yang rusak.
+$tmpPath = '/tmp/laravel_cache';
+if (!is_dir($tmpPath)) mkdir($tmpPath, 0777, true);
+
+putenv("APP_CONFIG_CACHE={$tmpPath}/config.php");
+putenv("APP_SERVICES_CACHE={$tmpPath}/services.php");
+putenv("APP_PACKAGES_CACHE={$tmpPath}/packages.php");
+putenv("APP_ROUTES_CACHE={$tmpPath}/routes.php");
+
+// ====================================================================
+// 2. HARDCODE ENV (SUNTIKAN)
+// ====================================================================
 // Masukkan data asli .env laptop Mas di sini.
 
-putenv('APP_KEY=base64:iKB6Mjm4Ko+geGJjqlzKMinpZqShp6PdbACHFAbBsEI='); // <-- PASTIKAN INI BENAR
+// ---> JANGAN LUPA CEK APP_KEY INI <---
+putenv('APP_KEY=base64:iKB6Mjm4Ko+geGJjqlzKMinpZqShp6PdbACHFAbBsEI='); 
+
 putenv('APP_DEBUG=true');
 putenv('APP_ENV=production');
 
-// DATABASE (Isi dengan benar, jangan sampai salah ketik/spasi)
+// DATABASE (Isi dengan benar)
 putenv('DB_CONNECTION=mysql');
 putenv('DB_HOST=gateway01.ap-southeast-1.prod.aws.tidbcloud.com'); 
 putenv('DB_PORT=4000');
@@ -18,61 +33,60 @@ putenv('4DYyn4ujWLMYNpK.root'); // <-- ISI USERNAME
 putenv('cbPEJnTClr7dxCWx'); // <-- ISI PASSWORD
 putenv('DB_SSL_MODE=required');
 
-// =============================================================
-// 2. BERSIHKAN CACHE OTOMATIS
-// =============================================================
-// Hapus config cache setiap kali loading supaya ENV baru terbaca
-$configCache = __DIR__.'/../bootstrap/cache/config.php';
-if (file_exists($configCache)) {
-    @unlink($configCache);
-}
-
-// =============================================================
+// ====================================================================
 // 3. BOOTING LARAVEL
-// =============================================================
+// ====================================================================
 use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
+// Load Maintenance
 if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php')) {
     require $maintenance;
 }
 
+// Load Composer
 require __DIR__.'/../vendor/autoload.php';
 
+// Load App
 $app = require_once __DIR__.'/../bootstrap/app.php';
 
-// =============================================================
-// 4. FIX STORAGE PATH (WAJIB VERCEL)
-// =============================================================
+// ====================================================================
+// 4. FIX STORAGE PATH
+// ====================================================================
 $app->useStoragePath('/tmp/storage');
 if (!is_dir('/tmp/storage')) {
     mkdir('/tmp/storage', 0777, true);
     mkdir('/tmp/storage/framework/views', 0777, true);
 }
 
-// =============================================================
-// 5. JEBAKAN BATMAN (TRY-CATCH BLOCK)
-// =============================================================
-// Ini kuncinya! Kita tangkap errornya sebelum Laravel crash.
-
+// ====================================================================
+// 5. EKSEKUSI DENGAN DIAGNOSA
+// ====================================================================
 try {
     $request = Request::capture();
     $response = $app->handle($request);
     $response->send();
     $app->terminate($request, $response);
 } catch (\Throwable $e) {
-    // Kalau error, cetak teks polos saja. Jangan panggil View!
-    echo "<div style='font-family: monospace; background: #222; color: #fff; padding: 20px;'>";
-    echo "<h1 style='color: #ff5555'>🔥 ERROR TERTANGKAP!</h1>";
-    echo "<h3>Pesan Error Asli:</h3>";
-    echo "<pre style='color: #ffff55; font-size: 16px;'>" . $e->getMessage() . "</pre>";
-    echo "<hr>";
-    echo "<h3>Lokasi:</h3>";
-    echo "<p>" . $e->getFile() . " di baris " . $e->getLine() . "</p>";
-    echo "<hr>";
-    echo "<h3>Stack Trace (Ringkas):</h3>";
-    echo "<pre>" . substr($e->getTraceAsString(), 0, 1000) . "...</pre>";
+    // Kalau masih error, kita bedah lagi
+    echo "<div style='font-family: monospace; background: #111; color: #f0f0f0; padding: 20px;'>";
+    echo "<h1 style='color: #ff4444'>🔥 MASIH ERROR?</h1>";
+    echo "<p>Tapi tenang, cache lama sudah di-bypass. Ini error aslinya:</p>";
+    echo "<div style='background: #333; padding: 15px; border-left: 5px solid #ff4444;'>";
+    echo "<strong>Pesan:</strong> " . $e->getMessage() . "<br>";
+    echo "<strong>File:</strong> " . $e->getFile() . " baris " . $e->getLine();
     echo "</div>";
-    die(); // Matikan proses di sini
+    
+    // Cek apakah view provider ada di memori?
+    echo "<hr><h3>Status Provider:</h3>";
+    $loadedProviders = array_keys($app->getLoadedProviders());
+    $viewProvider = 'Illuminate\View\ViewServiceProvider';
+    if (in_array($viewProvider, $loadedProviders)) {
+        echo "<span style='color:green'>✅ ViewServiceProvider TERLOAD (Aneh kalau error View).</span>";
+    } else {
+        echo "<span style='color:orange'>⚠️ ViewServiceProvider TIDAK TERLOAD. (Masalah Config).</span>";
+    }
+    echo "</div>";
+    die();
 }
