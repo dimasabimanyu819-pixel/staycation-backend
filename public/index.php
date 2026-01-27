@@ -29,8 +29,8 @@ putenv('DB_CONNECTION=mysql');
 putenv('DB_HOST=gateway01.ap-southeast-1.prod.aws.tidbcloud.com'); 
 putenv('DB_PORT=4000');
 putenv('DB_DATABASE=staycation-db');
-putenv('4DYyn4ujWLMYNpK.root'); // <-- ISI USERNAME
-putenv('cbPEJnTClr7dxCWx'); // <-- ISI PASSWORD
+putenv('DB_USERNAME=4DYyn4ujWLMYNpK.root'); // <-- ISI USERNAME
+putenv('DB_PASSWORD=cbPEJnTClr7dxCWx'); // <-- ISI PASSWORD
 putenv('DB_SSL_MODE=required');
 
 // ====================================================================
