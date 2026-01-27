@@ -1,80 +1,74 @@
 <?php
 
-// ====================================================================
-// 1. TES KONEKSI DATABASE LANGSUNG (RAW TEST)
-// ====================================================================
-// Kita cek dulu koneksinya SEBELUM Laravel loading.
-// Kalau ini gagal, berarti PASSWORD TiDB 100% SALAH.
+use Illuminate\Http\Request;
 
-$testHost = 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com'; // <-- CEK HOST
-$testUser = '4DYyn4ujWLMYNpK.root'; // <-- CEK USER
-$testPass = 'QQhLZbWir5XT9sPv';   // <-- GANTI PASSWORD BARU DISINI (Tanpa Simbol)
-$testDb   = 'staycation-db';
-$testPort = 4000;
+define('LARAVEL_START', microtime(true));
 
-try {
-    $dsn = "mysql:host=$testHost;port=$testPort;dbname=$testDb;sslmode=verify-ca;sslrootcert=/etc/ssl/cert.pem";
-    // TiDB butuh opsi SSL khusus
-    $options = [
-        PDO::MYSQL_ATTR_SSL_CA => '/etc/ssl/cert.pem',
-        PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
-    ];
-    
-    // Coba connect manual
-    $pdo = new PDO($dsn, $testUser, $testPass, $options);
-    
-    // Kalau berhasil, diam saja (lanjut ke bawah).
-} catch (PDOException $e) {
-    // Kalau gagal, langsung teriak errornya disini!
-    echo "<div style='font-family:sans-serif; padding:20px; background:#ffebeb; border:2px solid red;'>";
-    echo "<h1 style='color:red'>🛑 STOP! Password Database Salah.</h1>";
-    echo "<p>Laravel belum dijalankan karena login database saja sudah gagal.</p>";
-    echo "<h3>Pesan Dari TiDB:</h3>";
-    echo "<code style='background:#fff; padding:5px;'>" . $e->getMessage() . "</code>";
-    echo "<br><br><strong>Solusi:</strong> Reset password TiDB lagi, gunakan huruf & angka saja.";
-    echo "</div>";
-    die(); // Matikan proses
-}
+// =================================================================
+// 1. SUNTIK CONFIGURASI (HARDCODE) - WAJIB UNTUK VERCEL
+// =================================================================
+// Karena DB sudah connect, kita masukkan credential yang sudah terbukti benar.
 
-// ====================================================================
-// 2. CONFIG LARAVEL (Hanya jalan kalau Tes Koneksi di atas SUKSES)
-// ====================================================================
-
-// Cache Buster
-$tmpPath = '/tmp/laravel_cache';
-if (!is_dir($tmpPath)) mkdir($tmpPath, 0777, true);
-putenv("APP_CONFIG_CACHE={$tmpPath}/config.php");
-putenv("APP_SERVICES_CACHE={$tmpPath}/services.php");
-putenv("APP_PACKAGES_CACHE={$tmpPath}/packages.php");
-
-// Inject Config Laravel
-putenv('APP_KEY=base64:iKB6Mjm4Ko+geGJjqlzKMinpZqShp6PdbACHFAbBsEI='); 
+// APP KEY (Pastikan sama dengan yang di laptop)
+putenv('APP_KEY=base64:iKB6Mjm4Ko+geGJjqlzKMinpZqShp6PdbACHFAbBsEI=');
 putenv('APP_DEBUG=true');
 putenv('APP_ENV=production');
 
+// DATABASE CREDENTIALS (YANG SUDAH SUKSES TADI)
 putenv('DB_CONNECTION=mysql');
-putenv("DB_HOST=$testHost");
-putenv("DB_PORT=$testPort");
-putenv("DB_DATABASE=$testDb");
-putenv("DB_USERNAME=$testUser");
-putenv("DB_PASSWORD=$testPass");
+putenv('DB_HOST=gateway01.ap-southeast-1.prod.aws.tidbcloud.com');
+putenv('DB_PORT=4000');
+// Nama database diganti jadi staycation-db (karena sudah dibuat)
+putenv('DB_DATABASE=staycation-db'); 
+putenv('DB_USERNAME=4DYyn4ujWLMYNpK.root'); 
+putenv('DB_PASSWORD=QQhLZbWir5XT9sPv'); // Password tanpa simbol
 putenv('DB_SSL_MODE=required');
 
-// Fix Storage
+// Simpan ke $_ENV juga agar terbaca oleh library lain
+$_ENV['APP_KEY']     = getenv('APP_KEY');
+$_ENV['DB_HOST']     = getenv('DB_HOST');
+$_ENV['DB_DATABASE'] = getenv('DB_DATABASE');
+$_ENV['DB_USERNAME'] = getenv('DB_USERNAME');
+$_ENV['DB_PASSWORD'] = getenv('DB_PASSWORD');
+
+// =================================================================
+// 2. LOADING LIBRARY LARAVEL (AUTOLOAD)
+// =================================================================
+
+// Cek Maintenance Mode
+if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php')) {
+    require $maintenance;
+}
+
+// INI YANG TADI ERROR. KITA PASTIKAN DILOAD DULUAN.
+if (file_exists(__DIR__.'/../vendor/autoload.php')) {
+    require __DIR__.'/../vendor/autoload.php';
+} else {
+    die("❌ Error Fatal: Folder '/vendor' tidak ditemukan. Jalankan 'composer install' di Vercel.");
+}
+
+// =================================================================
+// 3. BOOTING APLIKASI
+// =================================================================
+
 $app = require_once __DIR__.'/../bootstrap/app.php';
+
+// =================================================================
+// 4. FIX STORAGE PATH (KHUSUS VERCEL)
+// =================================================================
+// Pindahkan penyimpanan cache/view ke folder /tmp (karena Vercel read-only)
+
 $app->useStoragePath('/tmp/storage');
+
 if (!is_dir('/tmp/storage')) {
     mkdir('/tmp/storage', 0777, true);
     mkdir('/tmp/storage/framework/views', 0777, true);
+    mkdir('/tmp/storage/framework/cache', 0777, true);
+    mkdir('/tmp/storage/framework/sessions', 0777, true);
 }
 
-// Jalankan Laravel
-use Illuminate\Http\Request;
-try {
-    $request = Request::capture();
-    $response = $app->handle($request);
-    $response->send();
-    $app->terminate($request, $response);
-} catch (\Throwable $e) {
-    echo "<h1>Error Laravel:</h1>" . $e->getMessage();
-}
+// =================================================================
+// 5. JALANKAN REQUEST
+// =================================================================
+
+$app->handleRequest(Request::capture());
