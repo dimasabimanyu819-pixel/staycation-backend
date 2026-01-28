@@ -7,7 +7,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-class User extends Authenticatable
+// --- TAMBAHAN WAJIB UNTUK FILAMENT ---
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
+
+class User extends Authenticatable implements FilamentUser // <-- Tambahkan implements FilamentUser
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
@@ -44,5 +48,14 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    // =================================================================
+    // FUNGSI IZIN AKSES ADMIN PANEL (PENTING)
+    // =================================================================
+    public function canAccessPanel(Panel $panel): bool
+    {
+        // Izinkan akses jika emailnya adalah admin, ATAU jika sedang di localhost
+        return $this->email === 'admin@staycation.com' || app()->isLocal();
     }
 }
