@@ -20,7 +20,7 @@ putenv('DB_SSL_MODE=required');
 
 // --- B. FIX CSS & HTTPS (PENTING BUAT ADMIN PANEL) ---
 // Pastikan URL ini sesuai dengan link Vercel Anda yang muncul di browser
-$appUrl = 'https://staycation-backend-demo.vercel.app'; // <-- Cek URL Mas!
+$appUrl = 'https://staycation-backend-demo.vercel.app/admin'; // <-- Cek URL Mas!
 putenv("APP_URL={$appUrl}");
 putenv("ASSET_URL={$appUrl}");
 putenv('APP_ENV=production');
